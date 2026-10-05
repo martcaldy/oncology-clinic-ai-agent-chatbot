@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Справочный бот (прототип)</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 640px; margin: 24px auto; padding: 0 16px; }
+  #log { border: 1px solid #ccc; border-radius: 8px; padding: 12px; min-height: 280px; max-height: 60vh; overflow-y: auto; }
+  .msg { margin: 8px 0; padding: 8px 10px; border-radius: 8px; white-space: pre-wrap; }
+  .user { background: #e8f0fe; text-align: right; }
+  .bot { background: #f4f4f4; }
+  .source { font-size: 12px; color: #555; margin-top: 4px; }
+  .warn { background: #fff4e5; }
+  form { display: flex; gap: 8px; margin-top: 12px; }
+  input { flex: 1; padding: 8px; }
+  button { padding: 8px 12px; cursor: pointer; }
+  .notice { font-size: 12px; color: #777; margin-top: 8px; }
+</style>
+</head>
+<body>
+<h2>Справочный бот онкодиспансера</h2>
+<p class="notice">Прототип. Тексты ответов — тестовые, не утверждены. Бот не даёт медицинских назначений.</p>
+<div id="log"></div>
+<form id="form">
+  <input id="q" placeholder="Задайте вопрос" autocomplete="off" required>
+  <button>Отправить</button>
+</form>
+<script>
+const log = document.getElementById('log');
+let lastDialog = [];
+
+function add(text, cls, source) {
+  const d = document.createElement('div');
+  d.className = 'msg ' + cls;
+  d.textContent = text;
+  if (source) {
+    const s = document.createElement('div');
+    s.className = 'source';
+    s.textContent = 'Источник: ' + source;
+    d.appendChild(s);
+  }
+  log.appendChild(d);
+  log.scrollTop = log.scrollHeight;
+}
+
+function addHandoffButton() {
+  const b = document.createElement('button');
+  b.textContent = 'Передать специалисту';
+  b.onclick = async () => {
+    const res = await fetch('/api/handoff', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({dialog_text: lastDialog.join('\n')})
+    });
+    const data = await res.json();
+    add('Вопрос передан специалисту. Номер обращения: ' + data.ticket_id, 'bot');
+    b.disabled = true;
+  };
+  log.appendChild(b);
+}
+
+document.getElementById('form').onsubmit = async (e) => {
+  e.preventDefault();
+  const input = document.getElementById('q');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  add(text, 'user');
+  lastDialog.push('Пациент: ' + text);
+  const res = await fetch('/api/ask', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({text})
+  });
+  const data = await res.json();
+  const cls = (data.type === 'emergency' || data.type === 'refuse') ? 'bot warn' : 'bot';
+  add(data.text, cls, data.source);
+  lastDialog.push('Бот: ' + data.text);
+  if (data.handoff) addHandoffButton();
+};
+</script>
+</body>
+</html>

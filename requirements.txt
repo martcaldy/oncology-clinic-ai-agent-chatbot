@@ -1,0 +1,5 @@
+fastapi
+uvicorn
+pymorphy3
+pytest
+httpx

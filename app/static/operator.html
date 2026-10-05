@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Обращения (прототип)</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 820px; margin: 24px auto; padding: 0 16px; }
+  .ticket { border: 1px solid #ccc; border-radius: 8px; padding: 12px; margin: 12px 0; }
+  .meta { font-size: 12px; color: #555; }
+  pre { white-space: pre-wrap; background: #f7f7f7; padding: 8px; border-radius: 6px; }
+  textarea { width: 100%; min-height: 60px; }
+  .answered { background: #eefbea; }
+</style>
+</head>
+<body>
+<h2>Обращения специалистам</h2>
+<button onclick="load()">Обновить</button>
+<div id="list"></div>
+<script>
+async function load() {
+  const res = await fetch('/api/tickets');
+  const tickets = await res.json();
+  const list = document.getElementById('list');
+  list.innerHTML = '';
+  for (const t of tickets) {
+    const d = document.createElement('div');
+    d.className = 'ticket' + (t.status === 'answered' ? ' answered' : '');
+    d.innerHTML = '<div class="meta">Обращение #' + t.id + ' · ' + t.created_at + ' · ' + t.status + '</div>';
+    const pre = document.createElement('pre');
+    pre.textContent = t.dialog_text;
+    d.appendChild(pre);
+    if (t.answer_text) {
+      const a = document.createElement('div');
+      a.textContent = 'Ответ: ' + t.answer_text;
+      d.appendChild(a);
+    } else {
+      const ta = document.createElement('textarea');
+      const btn = document.createElement('button');
+      btn.textContent = 'Ответить';
+      btn.onclick = async () => {
+        await fetch('/api/tickets/' + t.id + '/answer', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({answer: ta.value})
+        });
+        load();
+      };
+      d.appendChild(ta);
+      d.appendChild(btn);
+    }
+    list.appendChild(d);
+  }
+}
+load();
+</script>
+</body>
+</html>
