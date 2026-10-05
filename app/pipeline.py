@@ -3,8 +3,6 @@ from dataclasses import dataclass
 
 from app import kb, safety
 
-SCORE_THRESHOLD = -0.1
-
 NOT_FOUND_TEXT = (
     "В утверждённой базе нет ответа на этот вопрос. "
     "Вы можете передать его специалисту."
@@ -26,7 +24,7 @@ def ask(conn: sqlite3.Connection, text: str) -> Reply:
         return Reply(blocked.kind, blocked.text, None, handoff=True)
 
     hits = kb.search(conn, text)
-    if hits and hits[0].score <= SCORE_THRESHOLD:
+    if hits:
         best = hits[0]
         return Reply("answer", best.answer_text, best.source, handoff=False, kb_id=best.id)
 
